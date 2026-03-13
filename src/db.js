@@ -22,6 +22,7 @@ db.exec(`
     uuid TEXT UNIQUE NOT NULL,
     name TEXT NOT NULL,
     type TEXT NOT NULL,
+    user_id INTEGER,
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
   );
