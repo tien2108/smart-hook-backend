@@ -1,5 +1,6 @@
 const express = require('express');
 const cors = require('cors');
+const { ApiError } = require('./utils/errors'); // ✅ CommonJS style
 const WebSocket = require('ws');
 const http = require('http');
 
