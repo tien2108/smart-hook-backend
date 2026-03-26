@@ -3,6 +3,7 @@ const cors = require('cors');
 const { ApiError } = require('./utils/errors'); // ✅ CommonJS style
 const WebSocket = require('ws');
 const http = require('http');
+const deviceRoutes = require('./routes/device');
 
 // Load .env file if present (no extra dependency — just read it manually)
 const fs = require('fs');
@@ -31,6 +32,7 @@ app.use(express.json());
 // ── Routes ─────────────────────────────────────────────────────────────────
 app.use('/api/auth', require('./routes/auth'));
 app.use('/api/webhook', require('./routes/webhook'));
+app.use('/api/device', deviceRoutes);
 
 // Health check
 app.get('/api/health', (req, res) => {
