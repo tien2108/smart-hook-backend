@@ -4,6 +4,8 @@ const { ApiError } = require('./utils/errors'); // ✅ CommonJS style
 const WebSocket = require('ws');
 const http = require('http');
 
+const setupWebSocket = require('./websocket'); 
+
 // Load .env file if present (no extra dependency — just read it manually)
 const fs = require('fs');
 const path = require('path');
@@ -47,5 +49,13 @@ app.use((err, req, res, next) => {
 	res.status(500).json({ error: 'Internal server error' });
 });
 
+
+
 // ── Start ────────────────────────────────────────────────────────────────────
 const PORT = process.env.PORT || 3000;
+const server = http.createServer(app);
+setupWebSocket(server);
+
+server.listen(PORT, '0.0.0.0', () => {
+	console.log(`Server running on port ${PORT}`);
+});
