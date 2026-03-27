@@ -80,4 +80,14 @@ router.get('/me', requireAuth, (req, res) => {
 	res.json(user);
 });
 
+router.get('/user/:id', requireAuth, (req, res) => {
+	const user = db
+		.prepare('SELECT id, email, name, created_at FROM users WHERE id = ?')
+		.get(req.params.id);
+	if (!user) {
+		return res.status(404).json({ error: 'User not found' });
+	}
+	res.json(user);
+});
+
 module.exports = router;
