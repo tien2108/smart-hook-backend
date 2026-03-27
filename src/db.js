@@ -23,10 +23,8 @@ db.exec(`
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     uuid TEXT UNIQUE NOT NULL,
     name TEXT NOT NULL,
-    type TEXT NOT NULL,
-    user_id INTEGER,
-    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+    status TEXT DEFAULT 'offline',
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP
   );
 `);
 
