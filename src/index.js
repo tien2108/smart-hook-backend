@@ -3,7 +3,8 @@ const cors = require('cors');
 const { ApiError } = require('./utils/errors'); // ✅ CommonJS style
 const WebSocket = require('ws');
 const http = require('http');
-const deviceRoutes = require('./routes/device');
+
+const setupWebSocket = require('./websocket'); 
 
 // Load .env file if present (no extra dependency — just read it manually)
 const fs = require('fs');
@@ -32,7 +33,7 @@ app.use(express.json());
 // ── Routes ─────────────────────────────────────────────────────────────────
 app.use('/api/auth', require('./routes/auth'));
 app.use('/api/webhook', require('./routes/webhook'));
-app.use('/api/device', deviceRoutes);
+app.use('/api/device', require('./routes/device'));
 
 // Health check
 app.get('/api/health', (req, res) => {
@@ -48,8 +49,13 @@ app.use((err, req, res, next) => {
 	res.status(500).json({ error: 'Internal server error' });
 });
 
+
+
 // ── Start ────────────────────────────────────────────────────────────────────
 const PORT = process.env.PORT || 3000;
-app.listen(PORT, '0.0.0.0', () => {
-	console.log(`Backend server running on port ${PORT}`);
+const server = http.createServer(app);
+setupWebSocket(server);
+
+server.listen(PORT, '0.0.0.0', () => {
+	console.log(`Server running on port ${PORT}`);
 });
