@@ -1,6 +1,7 @@
 const express = require('express');
 const db = require('../db');
 const { ApiError } = require('../utils/errors');
+const { getTravelPlan } = require('../utils/transit');
 
 const router = express.Router();
 
@@ -13,7 +14,7 @@ router.post('/v1/add-device', (req, res, next) => {
   }
 
   console.log(`Adding device: ${uuid}, ${name}, ${type}`);
-  
+
   try {
     const existing = db.prepare('SELECT id FROM devices WHERE uuid = ?').get(uuid);
     if (existing) {
@@ -51,6 +52,45 @@ router.delete('/v1/device/:id', (req, res, next) => {
     res.json({ message: "Device deleted successfully" });
   } catch (error) {
     return next(new ApiError(500, 'Error deleting device'));
+  }
+});
+
+// GET /api/device/v1/status/:uuid — unified status for hardware (ESP32)
+router.get('/v1/status/:uuid', async (req, res, next) => {
+  const { uuid } = req.params;
+
+  try {
+    const device = db.prepare('SELECT * FROM devices WHERE uuid = ?').get(uuid);
+    if (!device) {
+      throw new ApiError(404, 'Device not found');
+    }
+
+    let transit = null;
+
+    // Only fetch transit if coordinates are set
+    if (device.origin_lat && device.origin_lon && device.dest_lat && device.dest_lon) {
+      try {
+        transit = await getTravelPlan(
+          { lat: device.origin_lat, lon: device.origin_lon },
+          { lat: device.dest_lat, lon: device.dest_lon }
+        );
+      } catch (err) {
+        console.error('Transit fetch failed:', err.message);
+        // We don't fail the whole request if transit fails
+      }
+    }
+
+    res.json({
+      uuid: device.uuid,
+      name: device.name,
+      status: device.status,
+      last_seen: device.last_seen,
+      transit: transit,
+      // Weather will be added here by teammate
+      weather: null
+    });
+  } catch (error) {
+    next(error);
   }
 });
 
