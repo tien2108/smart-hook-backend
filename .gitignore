@@ -1,3 +1,4 @@
 node_modules/*
 # Ignore database file
 data/*
+.env
