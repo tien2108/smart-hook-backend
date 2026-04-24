@@ -22,8 +22,10 @@ router.post('/v1/add-device', (req, res, next) => {
     }
 
     db.prepare('INSERT INTO devices (uuid, name, type) VALUES (?, ?, ?)').run(uuid, name, type);
+    console.log("Added successfully")
     res.json({ message: "Device added successfully" });
   } catch (error) {
+    console.error("Error adding:",error)
     return next(new ApiError(500, 'Error adding device'));
   }
 });
