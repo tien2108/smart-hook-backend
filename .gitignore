@@ -1,12 +1,9 @@
 node_modules/*
 # Ignore database file
 data/*
-<<<<<<< traffic-api-integration
 # Ignore .env file
 .env
 .env.*
 # Ignore utils test file
 src/utils/test-transit.js
-=======
 .env
->>>>>>> master
