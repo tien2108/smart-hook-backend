@@ -56,11 +56,11 @@ router.delete('/v1/device/:id', (req, res, next) => {
 });
 
 // GET /api/device/v1/status/:uuid — unified status for hardware (ESP32)
-router.get('/v1/status/:uuid', async (req, res, next) => {
+router.get('/v1/status/:id', async (req, res, next) => {
   const { uuid } = req.params;
 
   try {
-    const device = db.prepare('SELECT * FROM devices WHERE uuid = ?').get(uuid);
+    const {origin_lat, origin_lon, dest_lat, dest_lon} = db.prepare('SELECT origin_lat, origin_lon, dest_lat, dest_lon FROM devices WHERE id = ?').get(id);
     if (!device) {
       throw new ApiError(404, 'Device not found');
     }
@@ -68,11 +68,11 @@ router.get('/v1/status/:uuid', async (req, res, next) => {
     let transit = null;
 
     // Only fetch transit if coordinates are set
-    if (device.origin_lat && device.origin_lon && device.dest_lat && device.dest_lon) {
+    if (origin_lat && origin_lon && dest_lat && dest_lon) {
       try {
         transit = await getTravelPlan(
-          { lat: device.origin_lat, lon: device.origin_lon },
-          { lat: device.dest_lat, lon: device.dest_lon }
+          { lat: origin_lat, lon: origin_lon },
+          { lat: dest_lat, lon: dest_lon }
         );
       } catch (err) {
         console.error('Transit fetch failed:', err.message);
