@@ -89,11 +89,13 @@ router.get('/v1/status/:id', async (req, res, next) => {
       }
     }
 
+		const weather_origin = await getWeather(device.origin_lat, device.origin_lon);
+
 		const leaveHouseAt = transit?.leaveHouseAt ? new Date(transit.leaveHouseAt) : null;
 		const durationMinutes = transit.durationMinutes;
 		const arrivalTime = leaveHouseAt && durationMinutes ? new Date(leaveHouseAt.getTime() + durationMinutes * 60000) : null;
 
-		weather = await getWeather(device.dest_lat, device.dest_lon, arrivalTime);
+		const weather_arrival = await getWeather(device.dest_lat, device.dest_lon, arrivalTime);
 
 		res.json({
       uuid: device.uuid,
@@ -102,14 +104,16 @@ router.get('/v1/status/:id', async (req, res, next) => {
       last_seen: device.last_seen,
       transit: transit,
       // Weather will be added here by teammate
-      weather: weather
+      weather: {
+        origin: weather_origin,
+        arrival: weather_arrival
+      }
     });
   } catch (error) {
     next(error);
   }
 });
 
-module.exports = router;
 router.get('/v1/device/:id/weather/origin', async (req, res, next) => {
 	const { id } = req.params;
 

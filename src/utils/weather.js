@@ -67,16 +67,8 @@ async function getWeather(lat, lon, arrivalTime = null) {
 	// 🌦️ default response = CURRENT
 	let result = {
 		temperature: current.temperature_2m,
-		humidity: current.relative_humidity_2m,
-		wind_speed: current.wind_speed_10m,
-		wind_direction: current.wind_direction_10m,
 		precipitation: current.precipitation,
-		uv_index: current.uv_index,
-		visibility: current.visibility,
-		cloud_cover: current.cloud_cover,
-		weather_description: WMO_CODES[current.weather_code] || 'Unknown',
-		sunrise: weatherBody.daily.sunrise[0],
-		sunset: weatherBody.daily.sunset[0],
+		weather_description: WMO_CODES[current.weather_code] || 'Unknown'
 	};
 
 	// 🌦️ OVERRIDE if arrivalTime exists
@@ -99,8 +91,7 @@ async function getWeather(lat, lon, arrivalTime = null) {
 			temperature: temperature_2m[closestIndex],
 			precipitation: precipitation[closestIndex],
 			weather_description: WMO_CODES[weather_code[closestIndex]] || 'Unknown',
-			time: time[closestIndex],
-			mode: 'arrival', // 👈 optional but useful
+			time: time[closestIndex]
 		};
 	}
 
