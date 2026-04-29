@@ -1,5 +1,7 @@
 const { ApiError } = require('./errors');
-require('dotenv').config();
+
+const NOAA_URL = 'https://services.swpc.noaa.gov/products';
+const WEATHER_URL = 'https://api.open-meteo.com/v1/forecast';
 
 let auroraCache = { data: null, fetchedAt: null };
 const WMO_CODES = {
@@ -31,7 +33,7 @@ async function getAuroraData() {
 		return auroraCache.data;
 	}
 	const res = await fetch(
-		`${process.env.NOAA_API_URL}/noaa-planetary-k-index.json`,
+		`${NOAA_URL}/noaa-planetary-k-index.json`,
 	);
 	if (!res.ok) throw new ApiError(500, 'Failed to fetch aurora data');
 	auroraCache = { data: await res.json(), fetchedAt: Date.now() };
