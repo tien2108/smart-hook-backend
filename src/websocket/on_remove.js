@@ -3,7 +3,7 @@ const { getTravelPlan } = require('../utils/transit');
 const db = require('../db');
 const { ApiError } = require('../utils/errors');
 
-async function handleRemoveClothes(uuid) {
+async function onRemoveClothes(uuid) {
 	// Implement device removal logic here, e.g., remove from database
 	console.log(`Handling device removal for UUID: ${uuid}`);
 	const device = db.prepare('SELECT * FROM devices WHERE uuid = ?').get(uuid);
@@ -44,5 +44,5 @@ async function handleRemoveClothes(uuid) {
 }
 
 module.exports = {
-	handleRemoveClothes,
+	onRemoveClothes,
 };

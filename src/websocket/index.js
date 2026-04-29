@@ -1,9 +1,19 @@
 const { verifyDevice } = require('./auth');
-const { handleRemoveClothes } = require('./on_remove');
+const { onRemoveClothes } = require('./on_remove');
 
 module.exports = async function (wss) {
 	wss.on('connection', function connection(ws) {
-		console.log('New WebSocket connection');
+    const ip = req.headers['x-forwarded-for'] || req.socket.remoteAddress;
+    let authenticated = false;
+    let authTimeout;
+    let deviceUuid = null;
+
+    // Kick unauthenticated connections after 5 seconds
+    authTimeout = setTimeout(() => {
+      if (!authenticated) {
+        ws.close(1008, 'Authentication timeout');
+      }
+    }, 5000);
 
 		ws.on('message', function incoming(message) {
 			console.log('Received message:', message);
@@ -30,14 +40,22 @@ module.exports = async function (wss) {
 					);
 					ws.close();
 				} else {
-					console.log(`Device authenticated successfully: ${uuid}`);
+          authenticated = true;
+          deviceUuid = uuid;
+          clearTimeout(authTimeout);
+          console.log(`[WS] Device authenticated: ${uuid} | ip: ${ip}`);
+          ws.send(JSON.stringify({ type: 'auth', success: true }));
 				}
-			} else if (data.type === 'message') {
+			}
+      else if (!authenticated) {
+        ws.close(1008, 'Not authenticated');
+      } 
+      else if (data.type === 'message') {
 				// Handle device message logic here
-				console.log(`Device sent message: ${uuid}, content: ${data.content}`);
+				console.log(`Device sent message: ${deviceUuid}, content: ${data.content}`);
 				if (data.content === 'remove') {
 					try {
-            const result = await handleRemoveClothes(uuid);
+            const result = await onRemoveClothes(deviceUuid);
             ws.send(JSON.stringify({ type: 'remove_response', success: true, result: result }));
           } catch (error) {
             console.error('Error handling remove clothes:', error);
@@ -51,8 +69,11 @@ module.exports = async function (wss) {
 			}
 		});
 
-		ws.on('close', function () {
-			console.log('WebSocket connection closed');
+		ws.on('close', function (code, reason) {
+      clearTimeout(authTimeout);
+      if (authenticated) {
+        console.log(`[WS] Device disconnected: ${deviceUuid} | code: ${code}`);
+      }
 		});
 	});
 };
