@@ -8,13 +8,13 @@ const router = express.Router();
 
 // Add device to database endpoint
 router.post('/v1/add-device', (req, res, next) => {
-	const { uuid, name, type } = req.body;
+	const { uuid, name } = req.body;
 
-	if (!uuid || !name || !type) {
-		return next(new ApiError(400, 'UUID, name, and type are required'));
+	if (!uuid || !name ) {
+		return next(new ApiError(400, 'UUID and name are required'));
 	}
 
-	console.log(`Adding device: ${uuid}, ${name}, ${type}`);
+	console.log(`Adding device: ${uuid}, ${name}`);
 
 	try {
 		const existing = db
@@ -24,10 +24,9 @@ router.post('/v1/add-device', (req, res, next) => {
 			return next(new ApiError(409, 'Device with this UUID already exists'));
 		}
 
-		db.prepare('INSERT INTO devices (uuid, name, type) VALUES (?, ?, ?)').run(
+		db.prepare('INSERT INTO devices (uuid, name) VALUES (?, ?)').run(
 			uuid,
-			name,
-			type,
+			name
 		);
 		console.log('Added successfully');
 		res.json({ message: 'Device added successfully' });

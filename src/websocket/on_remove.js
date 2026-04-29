@@ -17,10 +17,10 @@ async function onRemoveClothes(uuid) {
 		{ lat: device.origin_lat, lon: device.origin_lon },
 		{ lat: device.dest_lat, lon: device.dest_lon },
 	);
-  const leaveHouseAt = transit?.leaveHouseAt
-		? new Date(transit.leaveHouseAt)
+  const leaveHouseAt = travelPlan?.leaveHouseAt
+		? new Date(travelPlan.leaveHouseAt)
 		: null;
-	const durationMinutes = transit.durationMinutes;
+	const durationMinutes = travelPlan.durationMinutes;
 	const arrivalTime =
 		leaveHouseAt && durationMinutes
 			? new Date(leaveHouseAt.getTime() + durationMinutes * 60000)

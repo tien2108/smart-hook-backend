@@ -1,15 +1,15 @@
 const { ApiError } = require('./errors');
 
 const HSL_ENDPOINT = "https://api.digitransit.fi/routing/v2/hsl/gtfs/v1";
-const API_KEY = process.env.DIGITRANSIT_API_KEY;
 
 /**
  * Fetches a travel plan between two coordinates using the Digitransit API.
  * @param {Object} from - { lat, lon }
  * @param {Object} to - { lat, lon }
  * @returns {Promise<Object>} The formatted itinerary for ESP32
- */
+*/
 async function getTravelPlan(from, to) {
+    const API_KEY = process.env.DIGITRANSIT_API_KEY;
     if (!API_KEY) {
         console.warn('DIGITRANSIT_API_KEY is not set. Transit features will not work.');
         return null;
