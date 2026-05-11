@@ -32,16 +32,14 @@ async function getAuroraData() {
 	if (auroraCache.data && Date.now() - auroraCache.fetchedAt < CACHE_TTL) {
 		return auroraCache.data;
 	}
-	const res = await fetch(
-		`${NOAA_URL}/noaa-planetary-k-index.json`,
-	);
+	const res = await fetch(`${NOAA_URL}/noaa-planetary-k-index.json`);
 	if (!res.ok) throw new ApiError(500, 'Failed to fetch aurora data');
 	auroraCache = { data: await res.json(), fetchedAt: Date.now() };
 	return auroraCache.data;
 }
 
 async function getWeather(lat, lon, arrivalTime = null) {
-	const weatherUrl = `${process.env.WEATHER_API_URL}?latitude=${lat}&longitude=${lon}
+	const weatherUrl = `${WEATHER_URL}?latitude=${lat}&longitude=${lon}
 	&current=temperature_2m,relative_humidity_2m,wind_speed_10m,wind_direction_10m,precipitation,uv_index,visibility,cloud_cover,weather_code
 	&hourly=temperature_2m,precipitation,weather_code
 	&daily=sunrise,sunset
@@ -70,7 +68,7 @@ async function getWeather(lat, lon, arrivalTime = null) {
 	let result = {
 		temperature: current.temperature_2m,
 		precipitation: current.precipitation,
-		weather_description: WMO_CODES[current.weather_code] || 'Unknown'
+		weather_description: WMO_CODES[current.weather_code] || 'Unknown',
 	};
 
 	// 🌦️ OVERRIDE if arrivalTime exists
@@ -93,7 +91,7 @@ async function getWeather(lat, lon, arrivalTime = null) {
 			temperature: temperature_2m[closestIndex],
 			precipitation: precipitation[closestIndex],
 			weather_description: WMO_CODES[weather_code[closestIndex]] || 'Unknown',
-			time: time[closestIndex]
+			time: time[closestIndex],
 		};
 	}
 
