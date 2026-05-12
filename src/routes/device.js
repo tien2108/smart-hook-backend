@@ -3,8 +3,53 @@ const db = require('../db');
 const { ApiError } = require('../utils/errors');
 const { getTravelPlan } = require('../utils/transit');
 const { getWeather } = require('../utils/weather');
+const { geocode } = require('../utils/geocode');
 
 const router = express.Router();
+
+// PATCH /api/device/v1/device/:id/location — set origin/destination by address
+router.patch('/v1/device/:id/location', async (req, res, next) => {
+	const { id } = req.params;
+	const { origin_address, dest_address } = req.body;
+
+	if (!origin_address && !dest_address) {
+		return next(new ApiError(400, 'At least one of origin_address or dest_address is required'));
+	}
+
+	try {
+		const device = db.prepare('SELECT id FROM devices WHERE id = ?').get(id);
+		if (!device) {
+			return next(new ApiError(404, 'Device not found'));
+		}
+
+		const updates = {};
+
+		if (origin_address) {
+			const origin = await geocode(origin_address);
+			updates.origin_lat = origin.latitude;
+			updates.origin_lon = origin.longitude;
+		}
+
+		if (dest_address) {
+			const dest = await geocode(dest_address);
+			updates.dest_lat = dest.latitude;
+			updates.dest_lon = dest.longitude;
+		}
+
+		// Build dynamic UPDATE query
+		const setClauses = Object.keys(updates).map((key) => `${key} = ?`).join(', ');
+		const values = Object.values(updates);
+
+		db.prepare(`UPDATE devices SET ${setClauses} WHERE id = ?`).run(...values, id);
+
+		res.json({
+			message: 'Device location updated',
+			coordinates: updates
+		});
+	} catch (error) {
+		next(error instanceof ApiError ? error : new ApiError(500, 'Error updating device location'));
+	}
+});
 
 // Add device to database endpoint
 router.post('/v1/add-device', (req, res, next) => {
