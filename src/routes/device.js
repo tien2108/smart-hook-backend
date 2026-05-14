@@ -20,7 +20,6 @@ function assertOwnership(deviceId, userId, next) {
 	return true;
 }
 
-const router = express.Router();
 
 // PATCH /api/device/v1/:id/location — set origin/destination by address
 router.patch('/v1/:id/location', async (req, res, next) => {

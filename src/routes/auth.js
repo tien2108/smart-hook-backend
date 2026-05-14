@@ -48,7 +48,7 @@ router.post('/register', async (req, res, next) => {
     VALUES (${placeholders})
 `;
 
-		db.prepare(query).run(...values);
+		const result = db.prepare(query).run(...values);
 
 		const user = { id: result.lastInsertRowid, email };
 		const token = signToken(user);
