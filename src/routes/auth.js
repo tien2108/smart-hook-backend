@@ -9,7 +9,7 @@ const router = express.Router();
 // POST /api/auth/register — create a new account
 router.post('/register', async (req, res, next) => {
 	try {
-		const { email, password, name } = req.body;
+		const { email, password, name, home_address, work_address } = req.body;
 
 		if (!email || !password) {
 			throw new ApiError(400, 'Email and password are required');
@@ -23,11 +23,25 @@ router.post('/register', async (req, res, next) => {
 		}
 
 		const passwordHash = await bcrypt.hash(password, 10);
+		const { home_lat, home_lon } = { home_lat: 12, home_lon: 34 };
+		const { dest_lat, dest_lon } = { dest_lat: 56, dest_lon: 78 };
+
 		const result = db
 			.prepare(
-				'INSERT INTO users (email, password_hash, name) VALUES (?, ?, ?)',
+				`INSERT INTO users (email, password_hash, name, home_address, home_lat, home_lon , dest_address, dest_lat, dest_lon) 
+				VALUES (?, ?, ?, ?, ?, ?, ?, ?,?)`,
 			)
-			.run(email, passwordHash, name || null);
+			.run(
+				email,
+				passwordHash,
+				name,
+				home_address,
+				home_lat,
+				home_lon,
+				work_address,
+				dest_lat,
+				dest_lon,
+			);
 
 		const user = { id: result.lastInsertRowid, email };
 		const token = signToken(user);

@@ -16,6 +16,12 @@ db.exec(`
     name TEXT UNIQUE NOT NULL,
     password_hash TEXT NOT NULL,
     email TEXT UNIQUE NOT NULL,
+    home_address TEXT NOT NULL,
+    dest_address TEXT NOT NULL,
+    home_lat TEXT NOT NULL,
+    home_lon TEXT NOT NULL,
+    dest_lat TEXT NOT NULL,
+    dest_lon TEXT NOT NULL,
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP
   );
 
@@ -34,31 +40,22 @@ db.exec(`
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP
   );
 
-  CREATE TABLE IF NOT EXISTS measurements (
+  CREATE TABLE IF NOT EXISTS user_device(
     id INTEGER PRIMARY KEY AUTOINCREMENT,
-    device_id INTEGER NOT NULL,
-    sensor_type TEXT NOT NULL,
-    value REAL,
-    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-    FOREIGN KEY (device_id) REFERENCES devices(id) ON DELETE CASCADE
+    device_id INTEGER,
+    user_id INTEGER,
+    FOREIGN KEY (device_id) REFERENCES devices(id) ON DELETE CASCADE,
+    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
   );
 
-  -- To define what "Coat Removed" actually means (e.g., pressure < 50)
-  CREATE TABLE IF NOT EXISTS alert_rules (
+  CREATE TABLE IF NOT EXISTS device_log (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
-    device_id INTEGER NOT NULL,
-    sensor_type TEXT NOT NULL,
-    threshold_value REAL NOT NULL,
-    condition TEXT NOT NULL,
-    FOREIGN KEY (device_id) REFERENCES devices(id) ON DELETE CASCADE
-  );
-
-  CREATE TABLE IF NOT EXISTS alert_history (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    rule_id INTEGER NOT NULL,
-    triggered_value REAL,
-    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-    FOREIGN KEY (rule_id) REFERENCES alert_rules(id) ON DELETE CASCADE
+    device_id INTEGER,
+    device_name TEXT,
+    user_id INTEGER,
+    action TEXT,
+    time DATETIME DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
   );
 `);
 

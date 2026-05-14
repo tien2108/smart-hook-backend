@@ -6,11 +6,28 @@ const { getWeather } = require('../utils/weather');
 const { geocode } = require('../utils/geocode');
 
 const router = express.Router();
+const { requireAuth } = require('../middleware/auth');
+
+// Helper: verify the device belongs to the requesting user
+function assertOwnership(deviceId, userId, next) {
+	const link = db
+		.prepare('SELECT id FROM user_device WHERE device_id = ? AND user_id = ?')
+		.get(deviceId, userId);
+	if (!link) {
+		next(new ApiError(403, 'Device not found or access denied'));
+		return false;
+	}
+	return true;
+}
+
+const router = express.Router();
 
 // PATCH /api/device/v1/device/:id/location — set origin/destination by address
 router.patch('/v1/device/:id/location', async (req, res, next) => {
 	const { id } = req.params;
 	const { origin_address, dest_address } = req.body;
+
+
 
 	if (!origin_address && !dest_address) {
 		return next(
@@ -129,30 +146,40 @@ router.post('/v1/add-device', async (req, res, next) => {
 	}
 });
 
-router.get('/v1/devices', (req, res, next) => {
-	try {
-		const devices = db.prepare('SELECT * FROM devices').all();
+router.get('/v1/devices', requireAuth, (req, res, next) => {
+	const devices = db
+		.prepare(
+			`
+    SELECT d.* FROM devices d
+    JOIN user_device ud ON ud.device_id = d.id
+    WHERE ud.user_id = ?
+  `,
+		)
+		.all(req.user.id);
 
-		console.log(`Fetched devices: ${JSON.stringify(devices)}`);
-
-		res.json({ devices });
-	} catch (error) {
-		return next(new ApiError(500, 'Error fetching devices'));
-	}
+	res.json({ devices });
 });
-
-router.delete('/v1/:id', (req, res, next) => {
+router.delete('/v1/:id',requireAuth, (req, res, next) => {
 	const { id } = req.params;
 
 	try {
-		const device = db.prepare('SELECT id FROM devices WHERE id = ?').get(id);
+		const device = db.prepare('SELECT id,name FROM devices WHERE id = ?').get(id);
 		if (!device) {
 			return next(new ApiError(404, 'Device not found'));
 		}
+
+		if (!assertOwnership(id, req.user.id, next))
+			return next(new ApiError(401, 'Acess denied'));
+
 		const result = db.prepare('DELETE FROM devices WHERE id = ?').run(id);
 		if (result.changes === 0) {
 			return next(new ApiError(404, 'Device not found'));
 		}
+
+		db.prepare(
+			'INSERT INTO device_log (device_id,device_name, user_id, action) VALUES (?, ?, ?, ?)',
+		).run(device.id, device.name, req.user.id, `Remove device`);
+
 		console.log(`Deleted device with id: ${id}`);
 		res.json(device);
 	} catch (error) {
@@ -161,12 +188,16 @@ router.delete('/v1/:id', (req, res, next) => {
 });
 
 // Update device data
-router.post('/v1/:id', async (req, res, next) => {
+router.post('/v1/:id', requireAuth, async (req, res, next) => {
 	const { id } = req.params;
 	const { name, deviceLocation, destLocation } = req.body;
 
 	try {
-		const device = db.prepare('SELECT id FROM devices WHERE id = ?').get(id);
+		const device = db.prepare('SELECT id,name FROM devices WHERE id = ?').get(id);
+
+		if (!assertOwnership(id, req.user.id, next))
+			return next(new ApiError(401, 'Acess denied'));
+
 		if (!device) {
 			return next(new ApiError(404, 'Device not found'));
 		}
@@ -202,6 +233,11 @@ router.post('/v1/:id', async (req, res, next) => {
 		const updatedDevice = db
 			.prepare('SELECT id FROM devices WHERE id = ?')
 			.get(id);
+
+		db.prepare(
+			'INSERT INTO device_log (device_id, device_name, user_id, action) VALUES (?, ?, ?, ?)',
+		).run(device.id, device.name, req.user.id, `Update device`);
+
 		console.log(`Updated device with id: ${id}`);
 		res.json(updatedDevice);
 	} catch (error) {

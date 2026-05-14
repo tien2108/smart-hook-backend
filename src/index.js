@@ -34,6 +34,7 @@ app.use(express.json());
 app.use('/api/auth', require('./routes/auth'));
 app.use('/api/webhook', require('./routes/webhook'));
 app.use('/api/device', require('./routes/device'));
+app.use('/api/data', require('./routes/data'))
 
 // Health check
 app.get('/api/health', (req, res) => {

@@ -40,9 +40,8 @@ async function getAuroraData() {
 
 async function getWeather(lat, lon, arrivalTime = null) {
 	const weatherUrl = `${WEATHER_URL}?latitude=${lat}&longitude=${lon}
-	&current=temperature_2m,relative_humidity_2m,wind_speed_10m,wind_direction_10m,precipitation,uv_index,visibility,cloud_cover,weather_code
-	&hourly=temperature_2m,precipitation,weather_code
-	&daily=sunrise,sunset
+	&current=temperature_2m,relative_humidity_2m,wind_speed_10m,apparent_temperature,weather_code
+	&hourly=temperature_2m,relative_humidity_2m,wind_speed_10m,apparent_temperature,weather_code
 	&timezone=auto&forecast_days=1`;
 
 	const [weatherRes, auroraBody] = await Promise.all([
@@ -67,14 +66,22 @@ async function getWeather(lat, lon, arrivalTime = null) {
 	// 🌦️ default response = CURRENT
 	let result = {
 		temperature: current.temperature_2m,
-		precipitation: current.precipitation,
+		feels_like: current.apparent_temperature,
+		humidity: current.relative_humidity_2m,
+		wind_speed: current.wind_speed_10m,
 		weather_description: WMO_CODES[current.weather_code] || 'Unknown',
 	};
-
 	// 🌦️ OVERRIDE if arrivalTime exists
 	if (arrivalTime && weatherBody.hourly) {
-		const { time, temperature_2m, precipitation, weather_code } =
-			weatherBody.hourly;
+		const {
+			time,
+			temperature_2m,
+			relative_humidity_2m,
+			wind_speed_10m,
+			apparent_temperature,
+			weather_code,
+		} = weatherBody.hourly;
+
 
 		let closestIndex = 0;
 		let minDiff = Infinity;
@@ -89,7 +96,9 @@ async function getWeather(lat, lon, arrivalTime = null) {
 
 		result = {
 			temperature: temperature_2m[closestIndex],
-			precipitation: precipitation[closestIndex],
+			feels_like: apparent_temperature[closestIndex],
+			humidity: relative_humidity_2m[closestIndex],
+			wind_speed: wind_speed_10m[closestIndex],
 			weather_description: WMO_CODES[weather_code[closestIndex]] || 'Unknown',
 			time: time[closestIndex],
 		};
