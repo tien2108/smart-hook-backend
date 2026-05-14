@@ -117,7 +117,7 @@ router.post('/v1/add-device', async (req, res, next) => {
 `;
 
 		db.prepare(query).run(...values);
-		
+
 		const addedDevice = db
 			.prepare('SELECT * FROM devices WHERE uuid = ?')
 			.get(uuid);
@@ -161,42 +161,44 @@ router.delete('/v1/:id', (req, res, next) => {
 });
 
 // Update device data
-router.post('/v1/:id', (req, res, next) => {
+router.post('/v1/:id', async (req, res, next) => {
 	const { id } = req.params;
-	const { name, location } = req.body;
-	const coordinates = {
-		origin_lat: 12 || null,
-		origin_lon: 34 || null,
-		dest_lat: 56 || null,
-		dest_lon: 78 || null,
-	};
+	const { name, deviceLocation, destLocation } = req.body;
 
 	try {
 		const device = db.prepare('SELECT id FROM devices WHERE id = ?').get(id);
 		if (!device) {
 			return next(new ApiError(404, 'Device not found'));
 		}
-		const result = db
-			.prepare(
-				`UPDATE devices 
-			SET id = ?,
-      name = ?,
-      origin_lat = ?,
-      origin_lon = ?,
-      dest_lat = ?,
-      dest_lon = ?
-			WHERE id = ?
-		`,
-			)
-			.run(
-				id,
-				name,
-				coordinates.origin_lat,
-				coordinates.origin_lon,
-				coordinates.dest_lat,
-				coordinates.dest_lon,
-				id,
-			);
+		const updates = {
+			uuid: uuid,
+			name: name,
+			origin: deviceLocation,
+			dest: destLocation,
+		};
+
+		const origin = await geocode(deviceLocation);
+		updates.origin_lat = origin.latitude;
+		updates.origin_lon = origin.longitude;
+
+		const dest = await geocode(destLocation);
+		updates.dest_lat = dest.latitude;
+		updates.dest_lon = dest.longitude;
+
+		const keys = Object.keys(updates);
+
+		// "uuid = ?, name = ?, ..."
+		const setClause = keys.map((key) => `${key} = ?`).join(', ');
+
+		const values = Object.values(updates);
+
+		const query = `
+    UPDATE devices
+    SET ${setClause}
+    WHERE id = ?
+`;
+
+		const result = db.prepare(query).run(...values, id);
 		const updatedDevice = db
 			.prepare('SELECT id FROM devices WHERE id = ?')
 			.get(id);
