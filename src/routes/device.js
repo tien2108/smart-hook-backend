@@ -4,9 +4,9 @@ const { ApiError } = require('../utils/errors');
 const { getTravelPlan } = require('../utils/transit');
 const { getWeather } = require('../utils/weather');
 const { geocode } = require('../utils/geocode');
+const { requireAuth } = require('../middleware/auth');
 
 const router = express.Router();
-const { requireAuth } = require('../middleware/auth');
 
 // Helper: verify the device belongs to the requesting user
 function assertOwnership(deviceId, userId, next) {
@@ -22,8 +22,8 @@ function assertOwnership(deviceId, userId, next) {
 
 const router = express.Router();
 
-// PATCH /api/device/v1/device/:id/location — set origin/destination by address
-router.patch('/v1/device/:id/location', async (req, res, next) => {
+// PATCH /api/device/v1/:id/location — set origin/destination by address
+router.patch('/v1/:id/location', async (req, res, next) => {
 	const { id } = req.params;
 	const { origin_address, dest_address } = req.body;
 
