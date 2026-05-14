@@ -25,6 +25,8 @@ db.exec(`
     name TEXT NOT NULL,
     type TEXT DEFAULT 'hook',
     status TEXT DEFAULT 'offline',
+    origin TEXT,
+    dest TEXT,
     origin_lat REAL,
     origin_lon REAL,
     dest_lat REAL,
