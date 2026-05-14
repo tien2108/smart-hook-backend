@@ -13,7 +13,12 @@ router.patch('/v1/device/:id/location', async (req, res, next) => {
 	const { origin_address, dest_address } = req.body;
 
 	if (!origin_address && !dest_address) {
-		return next(new ApiError(400, 'At least one of origin_address or dest_address is required'));
+		return next(
+			new ApiError(
+				400,
+				'At least one of origin_address or dest_address is required',
+			),
+		);
 	}
 
 	try {
@@ -37,29 +42,40 @@ router.patch('/v1/device/:id/location', async (req, res, next) => {
 		}
 
 		// Build dynamic UPDATE query
-		const setClauses = Object.keys(updates).map((key) => `${key} = ?`).join(', ');
+		const setClauses = Object.keys(updates)
+			.map((key) => `${key} = ?`)
+			.join(', ');
 		const values = Object.values(updates);
 
-		db.prepare(`UPDATE devices SET ${setClauses} WHERE id = ?`).run(...values, id);
+		db.prepare(`UPDATE devices SET ${setClauses} WHERE id = ?`).run(
+			...values,
+			id,
+		);
 
 		res.json({
 			message: 'Device location updated',
-			coordinates: updates
+			coordinates: updates,
 		});
 	} catch (error) {
-		next(error instanceof ApiError ? error : new ApiError(500, 'Error updating device location'));
+		next(
+			error instanceof ApiError
+				? error
+				: new ApiError(500, 'Error updating device location'),
+		);
 	}
 });
 
 // Add device to database endpoint
-router.post('/v1/add-device', (req, res, next) => {
-	const { uuid, name, location } = req.body;
+router.post('/v1/add-device', async (req, res, next) => {
+	const { uuid, name, deviceLocation, destLocation } = req.body;
 
-	if (!uuid || !name) {
-		return next(new ApiError(400, 'UUID and name are required'));
+	if (!uuid || !name || !deviceLocation) {
+		return next(new ApiError(400, 'UUID, name, device location are required'));
 	}
 
-	console.log(`Adding device: ${uuid}, ${name}, ${location}`);
+	console.log(
+		`Adding device: ${uuid}, ${name}, ${deviceLocation}, ${destLocation}`,
+	);
 
 	try {
 		const existing = db
@@ -69,24 +85,39 @@ router.post('/v1/add-device', (req, res, next) => {
 			return next(new ApiError(409, 'Device with this UUID already exists'));
 		}
 
-		const coordinates = {
-			origin_lat: 12 || null,
-			origin_lon: 34 || null,
-			dest_lat: 56 || null,
-			dest_lon: 78 || null,
+		const updates = {
+			uuid: uuid,
+			name: name,
+			origin: deviceLocation,
+			dest: destLocation,
 		};
-		// Fix by geocoding later when we have the location string, for now just use dummy coordinates
 
-		db.prepare(
-			'INSERT INTO devices (uuid, name, origin_lat, origin_lon, dest_lat, dest_lon) VALUES (?, ?, ?, ?, ?, ?)',
-		).run(
-			uuid,
-			name,
-			coordinates.origin_lat,
-			coordinates.origin_lon,
-			coordinates.dest_lat,
-			coordinates.dest_lon,
-		);
+		const origin = await geocode(deviceLocation);
+		updates.origin_lat = origin.latitude;
+		updates.origin_lon = origin.longitude;
+
+		let dest = {};
+		if (destLocation) {
+			dest = await geocode(destLocation);
+		} else {
+			dest = await geocode('Aalto University');
+			updates.dest = 'Aalto University';
+		}
+		updates.dest_lat = dest.latitude;
+		updates.dest_lon = dest.longitude;
+
+		// Build INSERT query dynamically
+		const keys = Object.keys(updates);
+		const placeholders = keys.map(() => '?').join(', ');
+		const values = Object.values(updates);
+
+		const query = `
+    INSERT INTO devices (${keys.join(', ')})
+    VALUES (${placeholders})
+`;
+
+		db.prepare(query).run(...values);
+		
 		const addedDevice = db
 			.prepare('SELECT * FROM devices WHERE uuid = ?')
 			.get(uuid);
