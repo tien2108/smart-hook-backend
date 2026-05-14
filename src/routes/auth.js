@@ -3,6 +3,7 @@ const bcrypt = require('bcrypt');
 const db = require('../db');
 const { requireAuth, signToken } = require('../middleware/auth');
 const { ApiError } = require('../utils/errors');
+const { geocode } = require('../utils/geocode');
 
 const router = express.Router();
 
@@ -21,27 +22,33 @@ router.post('/register', async (req, res, next) => {
 		if (existing) {
 			throw new ApiError(409, 'Email already registered');
 		}
-
 		const passwordHash = await bcrypt.hash(password, 10);
-		const { home_lat, home_lon } = { home_lat: 12, home_lon: 34 };
-		const { dest_lat, dest_lon } = { dest_lat: 56, dest_lon: 78 };
+		const updates = {
+			email: email,
+			password_hash: passwordHash,
+			name: name,
+			home_address: home_address,
+			dest_address: work_address,
+		};
 
-		const result = db
-			.prepare(
-				`INSERT INTO users (email, password_hash, name, home_address, home_lat, home_lon , dest_address, dest_lat, dest_lon) 
-				VALUES (?, ?, ?, ?, ?, ?, ?, ?,?)`,
-			)
-			.run(
-				email,
-				passwordHash,
-				name,
-				home_address,
-				home_lat,
-				home_lon,
-				work_address,
-				dest_lat,
-				dest_lon,
-			);
+		const home = await geocode(home_address);
+		updates.home_lat = home.latitude;
+		updates.home_lon = home.longitude;
+		const dest = await geocode(work_address);
+		updates.dest_lat = dest.latitude;
+		updates.dest_lon = dest.longitude;
+
+		// Build INSERT query dynamically
+		const keys = Object.keys(updates);
+		const placeholders = keys.map(() => '?').join(', ');
+		const values = Object.values(updates);
+
+		const query = `
+    INSERT INTO users (${keys.join(', ')})
+    VALUES (${placeholders})
+`;
+
+		db.prepare(query).run(...values);
 
 		const user = { id: result.lastInsertRowid, email };
 		const token = signToken(user);

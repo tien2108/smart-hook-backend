@@ -27,8 +27,6 @@ router.patch('/v1/device/:id/location', async (req, res, next) => {
 	const { id } = req.params;
 	const { origin_address, dest_address } = req.body;
 
-
-
 	if (!origin_address && !dest_address) {
 		return next(
 			new ApiError(
@@ -116,12 +114,13 @@ router.post('/v1/add-device', async (req, res, next) => {
 		let dest = {};
 		if (destLocation) {
 			dest = await geocode(destLocation);
+			updates.dest_lat = dest.latitude;
+			updates.dest_lon = dest.longitude;
 		} else {
-			dest = await geocode('Aalto University');
-			updates.dest = 'Aalto University';
+			updates.dest = req.user.dest_address;
+			updates.dest_lat = req.user.dest_lat;
+			updates.dest_lon = req.user.dest_lon;
 		}
-		updates.dest_lat = dest.latitude;
-		updates.dest_lon = dest.longitude;
 
 		// Build INSERT query dynamically
 		const keys = Object.keys(updates);
@@ -139,6 +138,11 @@ router.post('/v1/add-device', async (req, res, next) => {
 			.prepare('SELECT * FROM devices WHERE uuid = ?')
 			.get(uuid);
 		console.log('Added successfully');
+
+		db.prepare(
+			`INSERT INTO user_device (device_id, user_id) VALUES (?, ?)`,
+		).run(addedDevice.id, req.user.id);
+
 		res.json(addedDevice);
 	} catch (error) {
 		console.error('Error adding:', error);
@@ -159,11 +163,13 @@ router.get('/v1/devices', requireAuth, (req, res, next) => {
 
 	res.json({ devices });
 });
-router.delete('/v1/:id',requireAuth, (req, res, next) => {
+router.delete('/v1/:id', requireAuth, (req, res, next) => {
 	const { id } = req.params;
 
 	try {
-		const device = db.prepare('SELECT id,name FROM devices WHERE id = ?').get(id);
+		const device = db
+			.prepare('SELECT id,name FROM devices WHERE id = ?')
+			.get(id);
 		if (!device) {
 			return next(new ApiError(404, 'Device not found'));
 		}
@@ -193,7 +199,9 @@ router.post('/v1/:id', requireAuth, async (req, res, next) => {
 	const { name, deviceLocation, destLocation } = req.body;
 
 	try {
-		const device = db.prepare('SELECT id,name FROM devices WHERE id = ?').get(id);
+		const device = db
+			.prepare('SELECT id,name FROM devices WHERE id = ?')
+			.get(id);
 
 		if (!assertOwnership(id, req.user.id, next))
 			return next(new ApiError(401, 'Acess denied'));
