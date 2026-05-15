@@ -20,7 +20,6 @@ function assertOwnership(deviceId, userId, next) {
 	return true;
 }
 
-
 // PATCH /api/device/v1/:id/location — set origin/destination by address
 router.patch('/v1/:id/location', async (req, res, next) => {
 	const { id } = req.params;
@@ -116,7 +115,10 @@ router.post('/v1/add-device', async (req, res, next) => {
 			updates.dest_lat = dest.latitude;
 			updates.dest_lon = dest.longitude;
 		} else {
-			updates.dest = req.user.work_address;
+			const { dest_address } = db
+				.query(`SELECT dest_address FROM users WHERE id = ?`)
+				.get(req.user.id);
+			updates.dest = dest_address;
 			updates.dest_lat = req.user.dest_lat;
 			updates.dest_lon = req.user.dest_lon;
 		}
