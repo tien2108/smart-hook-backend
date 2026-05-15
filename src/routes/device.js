@@ -116,7 +116,7 @@ router.post('/v1/add-device', async (req, res, next) => {
 			updates.dest_lat = dest.latitude;
 			updates.dest_lon = dest.longitude;
 		} else {
-			updates.dest = req.user.dest_address;
+			updates.dest = req.user.work_address;
 			updates.dest_lat = req.user.dest_lat;
 			updates.dest_lon = req.user.dest_lon;
 		}
