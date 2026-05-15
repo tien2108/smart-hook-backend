@@ -64,13 +64,15 @@ router.post('/register', async (req, res, next) => {
 // POST /api/auth/login — authenticate and get JWT
 router.post('/login', async (req, res, next) => {
 	try {
-		const { email, password } = req.body;
+		const { username, password } = req.body;
 
-		if (!email || !password) {
+		if (!username || !password) {
 			throw new ApiError(400, 'Email and password are required');
 		}
 
-		const user = db.prepare('SELECT * FROM users WHERE email = ?').get(email);
+		const user = db
+			.prepare('SELECT * FROM users WHERE email = ? or name = ?')
+			.get(username, username);
 		if (!user) {
 			throw new ApiError(401, 'Invalid email or password');
 		}
