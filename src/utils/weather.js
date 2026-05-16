@@ -56,6 +56,10 @@ async function fetchWeather(lat, lon, arrivalTime) {
 	]);
 
 	if (!currentRes.ok || !forecastRes.ok) {
+		console.log('Weather API error:', {
+			currentStatus: currentRes.status,
+			forecastStatus: forecastRes.status,
+		});
 		throw new ApiError(500, 'Failed to fetch weather data');
 	}
 
