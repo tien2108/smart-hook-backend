@@ -4,6 +4,9 @@ const NOAA_URL = 'https://services.swpc.noaa.gov/products';
 const WEATHER_URL = 'https://api.open-meteo.com/v1/forecast';
 
 let auroraCache = { data: null, fetchedAt: null };
+const weatherCache = new Map();
+const WEATHER_CACHE_TTL = 10 * 60 * 1000; // 10 minutes
+
 const WMO_CODES = {
 	0: 'Clear sky',
 	1: 'Mainly clear',
@@ -39,6 +42,12 @@ async function getAuroraData() {
 }
 
 async function getWeather(lat, lon, arrivalTime = null) {
+	const cacheKey = `${lat},${lon}`;
+	const cached = weatherCache.get(cacheKey);
+	if (cached && Date.now() - cached.fetchedAt < WEATHER_CACHE_TTL) {
+		return cached.data; // ← skip the API call entirely
+	}
+
 	const params = new URLSearchParams({
 		latitude: lat,
 		longitude: lon,
@@ -122,6 +131,9 @@ async function getWeather(lat, lon, arrivalTime = null) {
 		.at(-1);
 
 	const kpIndex = latestKp ? latestKp.Kp : 0;
+
+	// Cache before returning
+	weatherCache.set(cacheKey, { data: result, fetchedAt: Date.now() });
 
 	return {
 		...result,
