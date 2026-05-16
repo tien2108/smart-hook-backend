@@ -44,7 +44,7 @@ async function getAuroraData() {
 
 async function fetchWeather(lat, lon, arrivalTime) {
 	const apiKey = process.env.OPENWEATHER_API_KEY;
-
+	console.log('API key:', apiKey?.slice(0, 6) + '...');
 	const [currentRes, forecastRes, auroraBody] = await Promise.all([
 		fetch(
 			`${WEATHER_URL}/weather?lat=${lat}&lon=${lon}&appid=${apiKey}&units=metric`,
@@ -56,7 +56,7 @@ async function fetchWeather(lat, lon, arrivalTime) {
 	]);
 
 	if (!currentRes.ok || !forecastRes.ok) {
-    const err = await currentRes.json().catch(() => forecastRes.json());
+		const err = await currentRes.json().catch(() => forecastRes.json());
 		console.error('OWM error:', currentRes.status, err);
 		throw new ApiError(500, 'Failed to fetch weather data');
 	}
