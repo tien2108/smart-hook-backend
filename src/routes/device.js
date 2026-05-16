@@ -79,7 +79,7 @@ router.patch('/v1/:id/location', async (req, res, next) => {
 });
 
 // Add device to database endpoint
-router.post('/v1/add-device', async (req, res, next) => {
+router.post('/v1/add-device', requireAuth, async (req, res, next) => {
 	const { uuid, name, deviceLocation, destLocation } = req.body;
 
 	if (!uuid || !name || !deviceLocation) {
