@@ -116,7 +116,7 @@ router.post('/v1/add-device', async (req, res, next) => {
 			updates.dest_lon = dest.longitude;
 		} else {
 			const { dest_address } = db
-				.query(`SELECT dest_address FROM users WHERE id = ?`)
+				.prepare(`SELECT dest_address FROM users WHERE id = ?`)
 				.get(req.user.id);
 			updates.dest = dest_address;
 			updates.dest_lat = req.user.dest_lat;

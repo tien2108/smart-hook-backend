@@ -1,7 +1,7 @@
 const { ApiError } = require('./errors');
 
 const NOAA_URL = 'https://services.swpc.noaa.gov/products';
-const WEATHER_URL = 'https://api.open-meteo.com/v1/forecast';
+const WEATHER_URL = 'https://api.openweathermap.org/data/2.5';
 
 let auroraCache = { data: null, fetchedAt: null };
 const weatherCache = new Map();
@@ -43,89 +43,63 @@ async function getAuroraData() {
 }
 
 async function fetchWeather(lat, lon, arrivalTime) {
-	const params = new URLSearchParams({
-		latitude: lat,
-		longitude: lon,
-		current:
-			'temperature_2m,relative_humidity_2m,wind_speed_10m,apparent_temperature,weather_code',
-		hourly:
-			'temperature_2m,relative_humidity_2m,wind_speed_10m,apparent_temperature,weather_code',
-		timezone: 'auto',
-		forecast_days: '1',
-	});
+	const apiKey = process.env.OPENWEATHER_API_KEY;
 
-	const [weatherRes, auroraBody] = await Promise.all([
-		fetch(`${WEATHER_URL}?${params}`),
+	const [currentRes, forecastRes, auroraBody] = await Promise.all([
+		fetch(
+			`${WEATHER_URL}/weather?lat=${lat}&lon=${lon}&appid=${apiKey}&units=metric`,
+		),
+		fetch(
+			`${WEATHER_URL}/forecast?lat=${lat}&lon=${lon}&appid=${apiKey}&units=metric`,
+		),
 		getAuroraData(),
 	]);
 
-	if (!weatherRes.ok) {
-		const error = await weatherRes.text();
-		console.error('Weather API error:', error);
+	if (!currentRes.ok || !forecastRes.ok) {
 		throw new ApiError(500, 'Failed to fetch weather data');
 	}
 
-	const weatherBody = await weatherRes.json();
+	const [current, forecast] = await Promise.all([
+		currentRes.json(),
+		forecastRes.json(),
+	]);
 
-	if (weatherBody?.error) {
-		console.error('Weather API error:', weatherBody);
-		throw new ApiError(
-			500,
-			weatherBody.reason ?? 'Failed to fetch weather data',
-		);
-	}
-
-	if (!weatherBody?.current) {
-		throw new ApiError(500, 'Invalid weather data received');
-	}
-
-	const current = weatherBody.current;
-
-	// 🌦️ default response = CURRENT
+	// 🌦️ default = current conditions
 	let result = {
-		temperature: current.temperature_2m,
-		feels_like: current.apparent_temperature,
-		humidity: current.relative_humidity_2m,
-		wind_speed: current.wind_speed_10m,
-		weather_description: WMO_CODES[current.weather_code] || 'Unknown',
+		temperature: current.main.temp,
+		feels_like: current.main.feels_like,
+		humidity: current.main.humidity,
+		wind_speed: current.wind.speed,
+		weather_description: current.weather[0].description,
 	};
 
-	// 🌦️ OVERRIDE if arrivalTime exists
-	if (arrivalTime && weatherBody.hourly) {
-		const {
-			time,
-			temperature_2m,
-			relative_humidity_2m,
-			wind_speed_10m,
-			apparent_temperature,
-			weather_code,
-		} = weatherBody.hourly;
-
+	// 🌦️ OVERRIDE if arrivalTime exists — find closest forecast slot
+	if (arrivalTime && forecast.list?.length) {
 		let closestIndex = 0;
 		let minDiff = Infinity;
 
-		time.forEach((t, i) => {
-			const diff = Math.abs(Date.parse(t) - arrivalTime.getTime());
+		forecast.list.forEach((entry, i) => {
+			const diff = Math.abs(entry.dt * 1000 - arrivalTime.getTime());
 			if (diff < minDiff) {
 				minDiff = diff;
 				closestIndex = i;
 			}
 		});
 
+		const slot = forecast.list[closestIndex];
 		result = {
-			temperature: temperature_2m[closestIndex],
-			feels_like: apparent_temperature[closestIndex],
-			humidity: relative_humidity_2m[closestIndex],
-			wind_speed: wind_speed_10m[closestIndex],
-			weather_description: WMO_CODES[weather_code[closestIndex]] || 'Unknown',
-			time: time[closestIndex],
+			temperature: slot.main.temp,
+			feels_like: slot.main.feels_like,
+			humidity: slot.main.humidity,
+			wind_speed: slot.wind.speed,
+			weather_description: slot.weather[0].description,
+			time: slot.dt_txt,
 		};
 	}
 
 	const latestKp = auroraBody
 		.filter((entry) => entry.Kp !== null && entry.Kp !== undefined)
 		.at(-1);
-
 	const kpIndex = latestKp ? latestKp.Kp : 0;
 
 	return {
