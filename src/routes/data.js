@@ -16,7 +16,6 @@ router.get('/weather', requireAuth, async (req, res, next) => {
 			.get(userId);
 
 		if (!user) return next(new ApiError(404, 'User not found'));
-		console.log(user.home_lat);
 		const weather = await getWeather(user.home_lat, user.home_lon);
 		console.log(weather);
 		res.json(weather);

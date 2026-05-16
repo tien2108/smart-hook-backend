@@ -5,6 +5,7 @@ const WEATHER_URL = 'https://api.open-meteo.com/v1/forecast';
 
 let auroraCache = { data: null, fetchedAt: null };
 const weatherCache = new Map();
+const inFlight = new Map();
 const WEATHER_CACHE_TTL = 10 * 60 * 1000; // 10 minutes
 
 const WMO_CODES = {
@@ -31,7 +32,7 @@ const WMO_CODES = {
 };
 
 async function getAuroraData() {
-	const CACHE_TTL = 3 * 60 * 60 * 1000; // 15 minutes
+	const CACHE_TTL = 3 * 60 * 60 * 1000; // 3 hours
 	if (auroraCache.data && Date.now() - auroraCache.fetchedAt < CACHE_TTL) {
 		return auroraCache.data;
 	}
@@ -41,13 +42,7 @@ async function getAuroraData() {
 	return auroraCache.data;
 }
 
-async function getWeather(lat, lon, arrivalTime = null) {
-	const cacheKey = `${lat},${lon}`;
-	const cached = weatherCache.get(cacheKey);
-	if (cached && Date.now() - cached.fetchedAt < WEATHER_CACHE_TTL) {
-		return cached.data; // ← skip the API call entirely
-	}
-
+async function fetchWeather(lat, lon, arrivalTime) {
 	const params = new URLSearchParams({
 		latitude: lat,
 		longitude: lon,
@@ -72,7 +67,6 @@ async function getWeather(lat, lon, arrivalTime = null) {
 
 	const weatherBody = await weatherRes.json();
 
-	// Open-Meteo returns errors as 200 with { error: true, reason: "..." }
 	if (weatherBody?.error) {
 		console.error('Weather API error:', weatherBody);
 		throw new ApiError(
@@ -84,6 +78,7 @@ async function getWeather(lat, lon, arrivalTime = null) {
 	if (!weatherBody?.current) {
 		throw new ApiError(500, 'Invalid weather data received');
 	}
+
 	const current = weatherBody.current;
 
 	// 🌦️ default response = CURRENT
@@ -94,6 +89,7 @@ async function getWeather(lat, lon, arrivalTime = null) {
 		wind_speed: current.wind_speed_10m,
 		weather_description: WMO_CODES[current.weather_code] || 'Unknown',
 	};
+
 	// 🌦️ OVERRIDE if arrivalTime exists
 	if (arrivalTime && weatherBody.hourly) {
 		const {
@@ -132,9 +128,6 @@ async function getWeather(lat, lon, arrivalTime = null) {
 
 	const kpIndex = latestKp ? latestKp.Kp : 0;
 
-	// Cache before returning
-	weatherCache.set(cacheKey, { data: result, fetchedAt: Date.now() });
-
 	return {
 		...result,
 		aurora: {
@@ -148,9 +141,37 @@ async function getWeather(lat, lon, arrivalTime = null) {
 						: kpIndex < 7
 							? 'high'
 							: 'extreme',
-			measured_at: latestKp.time_tag,
+			measured_at: latestKp?.time_tag ?? null,
 		},
 	};
+}
+
+async function getWeather(lat, lon, arrivalTime = null) {
+	const cacheKey = `${lat},${lon}`;
+
+	// 1. Return cached data if fresh
+	const cached = weatherCache.get(cacheKey);
+	if (cached && Date.now() - cached.fetchedAt < WEATHER_CACHE_TTL) {
+		return cached.data;
+	}
+
+	// 2. If already fetching for this key, share the same promise
+	if (inFlight.has(cacheKey)) {
+		return inFlight.get(cacheKey);
+	}
+
+	// 3. Fetch, cache the full result, then clean up in-flight
+	const promise = fetchWeather(lat, lon, arrivalTime)
+		.then((data) => {
+			weatherCache.set(cacheKey, { data, fetchedAt: Date.now() });
+			return data;
+		})
+		.finally(() => {
+			inFlight.delete(cacheKey);
+		});
+
+	inFlight.set(cacheKey, promise);
+	return promise;
 }
 
 module.exports = { getWeather };
