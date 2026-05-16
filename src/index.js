@@ -1,14 +1,13 @@
 const express = require('express');
 const cors = require('cors');
-const { ApiError } = require('./utils/errors'); // ✅ CommonJS style
+const { ApiError } = require('./utils/errors');
 const WebSocket = require('ws');
 const http = require('http');
-
-const setupWebSocket = require('./websocket'); 
-
-// Load .env file if present (no extra dependency — just read it manually)
+const setupWebSocket = require('./websocket');
 const fs = require('fs');
 const path = require('path');
+
+// Load .env
 const envPath = path.join(__dirname, '..', '.env');
 if (fs.existsSync(envPath)) {
 	fs.readFileSync(envPath, 'utf8')
@@ -21,44 +20,45 @@ if (fs.existsSync(envPath)) {
 		});
 }
 
-// Initialize database (runs schema creation on first require)
-require('./db');
+async function start() {
+	// Init DB before anything else
+	const db = require('./db');
+	await db.init();
 
-const app = express();
+	const app = express();
 
-// ── Middleware ────────────────────────────────────────────────────────────────
-app.use(cors());
-app.use(express.json());
+	app.use(cors());
+	app.use(express.json());
 
-// ── Routes ─────────────────────────────────────────────────────────────────
-app.use('/api/auth', require('./routes/auth'));
-app.use('/api/webhook', require('./routes/webhook'));
-app.use('/api/device', require('./routes/device'));
-app.use('/api/data', require('./routes/data'))
-app.use('/api/user', require('./routes/user'));
+	app.use('/api/auth', require('./routes/auth'));
+	app.use('/api/webhook', require('./routes/webhook'));
+	app.use('/api/device', require('./routes/device'));
+	app.use('/api/data', require('./routes/data'));
+	app.use('/api/user', require('./routes/user'));
 
-// Health check
-app.get('/api/health', (req, res) => {
-	res.json({ status: 'ok' });
-});
+	app.get('/api/health', (req, res) => {
+		res.json({ status: 'ok' });
+	});
 
-// ── Error handler ────────────────────────────────────────────────────────────
-app.use((err, req, res, next) => {
-	if (err instanceof ApiError) {
-		return res.status(err.status).json({ error: err.message });
-	}
-	console.error(err);
-	res.status(500).json({ error: 'Internal server error' });
-});
+	app.use((err, req, res, next) => {
+		if (err instanceof ApiError) {
+			return res.status(err.status).json({ error: err.message });
+		}
+		console.error(err);
+		res.status(500).json({ error: 'Internal server error' });
+	});
 
+	const PORT = process.env.PORT || 3000;
+	const server = http.createServer(app);
+	const wss = new WebSocket.Server({ server });
+	setupWebSocket(wss);
 
+	server.listen(PORT, '0.0.0.0', () => {
+		console.log(`Server running on port ${PORT}`);
+	});
+}
 
-// ── Start ────────────────────────────────────────────────────────────────────
-const PORT = process.env.PORT || 3000;
-const server = http.createServer(app);
-const wss = new WebSocket.Server({ server });
-setupWebSocket(wss);
-
-server.listen(PORT, '0.0.0.0', () => {
-	console.log(`Server running on port ${PORT}`);
+start().catch((err) => {
+	console.error('Failed to start server:', err);
+	process.exit(1);
 });

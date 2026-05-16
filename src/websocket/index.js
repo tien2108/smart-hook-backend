@@ -1,6 +1,6 @@
 const { verifyDevice } = require('./auth');
 const { onRemoveClothes } = require('./on_remove');
-const {onDisconnect} = require('./disconnect');
+const { onDisconnect } = require('./disconnect');
 
 module.exports = function (wss) {
 	wss.on('connection', function connection(ws, req) {
@@ -28,7 +28,8 @@ module.exports = function (wss) {
 
 			if (data.type === 'auth') {
 				const { uuid } = data;
-				if (!verifyDevice(uuid)) {
+				const isVerified = await verifyDevice(uuid);
+				if (!isVerified) {
 					ws.send(
 						JSON.stringify({
 							type: 'auth',
@@ -71,8 +72,18 @@ module.exports = function (wss) {
 							}),
 						);
 					}
+				} else if (data.value === 'coat_on') {
+					// Handle coat_on event if needed
+					console.log(`Device ${deviceUuid} reported coat_on`);
+					// You can add any specific logic for coat_on here
 				} else {
-					ws.send(JSON.stringify({ type: 'status', value: data.value, success: true }));
+					ws.send(
+						JSON.stringify({
+							type: 'status',
+							value: data.value,
+							success: true,
+						}),
+					);
 				}
 			} else {
 				console.log('[WS] Unhandled message type:', data);
@@ -82,7 +93,7 @@ module.exports = function (wss) {
 		ws.on('close', async function (code) {
 			clearTimeout(authTimeout);
 			if (authenticated) {
-        await onDisconnect(deviceUuid);
+				await onDisconnect(deviceUuid);
 				console.log(`[WS] Device disconnected: ${deviceUuid} | code: ${code}`);
 			}
 		});

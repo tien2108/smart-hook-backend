@@ -6,7 +6,9 @@ const { ApiError } = require('../utils/errors');
 async function onRemoveClothes(uuid) {
 	// Implement device removal logic here, e.g., remove from database
 	console.log(`Handling device removal for UUID: ${uuid}`);
-	const device = db.prepare('SELECT * FROM devices WHERE uuid = ?').get(uuid);
+	const device = await db
+		.prepare('SELECT * FROM devices WHERE uuid = ?')
+		.get(uuid);
 
 	if (!device) {
 		console.warn(`Received message from unknown device: ${uuid}`);
@@ -17,7 +19,7 @@ async function onRemoveClothes(uuid) {
 		{ lat: device.origin_lat, lon: device.origin_lon },
 		{ lat: device.dest_lat, lon: device.dest_lon },
 	);
-  const leaveHouseAt = travelPlan?.leaveHouseAt
+	const leaveHouseAt = travelPlan?.leaveHouseAt
 		? new Date(travelPlan.leaveHouseAt)
 		: null;
 	const durationMinutes = travelPlan.durationMinutes;
@@ -27,7 +29,17 @@ async function onRemoveClothes(uuid) {
 			: null;
 
 	const weather_origin = await getWeather(device.origin_lat, device.origin_lon);
-	const weather_dest = await getWeather(device.dest_lat, device.dest_lon, arrivalTime);
+	const weather_dest = await getWeather(
+		device.dest_lat,
+		device.dest_lon,
+		arrivalTime,
+	);
+
+	await db
+		.prepare(
+			'INSERT INTO device_log (device_id, device_name, user_id, action) VALUES (?, ?, ?, ?)',
+		)
+		.run(device.id, device.name, device.user_id, `Clothes removed`);
 
 	return {
 		uuid: device.uuid,

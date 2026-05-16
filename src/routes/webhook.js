@@ -22,7 +22,7 @@ const router = express.Router();
 //   "timestamp": 1672531200000
 // }
 
-router.post('/sensor-data', (req, res) => {
+router.post('/sensor-data', async (req, res) => {
 	const { device: uuid, sensor, value, timestamp } = req.body;
 
 	if (!uuid || !sensor || value === undefined) {
@@ -32,16 +32,22 @@ router.post('/sensor-data', (req, res) => {
 	}
 
 	// Look up device by UUID
-	let deviceRow = db.prepare('SELECT id FROM devices WHERE uuid = ?').get(uuid);
+	let deviceRow = await db
+		.prepare('SELECT id FROM devices WHERE uuid = ?')
+		.get(uuid);
 	if (!deviceRow) {
 		// Device not yet claimed — still store the data with a device record
 		// This allows the webhook to work before a user claims the device
-		db.prepare(
-			'INSERT OR IGNORE INTO devices (uuid, name, type) VALUES (?, ?, ?)',
-		).run(uuid, uuid, 'ESP32');
+		await db
+			.prepare(
+				'INSERT OR IGNORE INTO devices (uuid, name, type) VALUES (?, ?, ?)',
+			)
+			.run(uuid, uuid, 'ESP32');
 
 		// Re-fetch (may have been inserted or already existed via race)
-		deviceRow = db.prepare('SELECT id FROM devices WHERE uuid = ?').get(uuid);
+		deviceRow = await db
+			.prepare('SELECT id FROM devices WHERE uuid = ?')
+			.get(uuid);
 		if (!deviceRow) {
 			return res.status(500).json({ error: 'Failed to register device' });
 		}
@@ -54,29 +60,30 @@ router.post('/sensor-data', (req, res) => {
 
 	// Store measurement: numeric values go in `value`, objects go in `value_json`
 	const isNumeric = typeof value === 'number';
-	db.prepare(
-		`
+	await db
+		.prepare(
+			`
     INSERT INTO measurements (device_id, sensor_name, value, value_json, measured_at)
     VALUES (?, ?, ?, ?, ?)
   `,
-	).run(
-		deviceId,
-		sensor,
-		isNumeric ? value : null,
-		isNumeric ? null : JSON.stringify(value),
-		measuredAt,
-	);
+		)
+		.run(
+			deviceId,
+			sensor,
+			isNumeric ? value : null,
+			isNumeric ? null : JSON.stringify(value),
+			measuredAt,
+		);
 
 	// Update device last_seen
-	db.prepare('UPDATE devices SET last_seen = ? WHERE id = ?').run(
-		new Date().toISOString(),
-		deviceId,
-	);
+	await db
+		.prepare('UPDATE devices SET last_seen = ? WHERE id = ?')
+		.run(new Date().toISOString(), deviceId);
 
 	// ── Check alert rules ──────────────────────────────────────────────────
 	// Only check for numeric values (threshold comparison doesn't apply to objects)
 	if (isNumeric) {
-		const rules = db
+		const rules = await db
 			.prepare(
 				`
       SELECT * FROM alert_rules
@@ -112,8 +119,8 @@ router.post('/sensor-data', (req, res) => {
 					break;
 			}
 			if (triggered) {
-				insertAlert.run(rule.id, value);
-				updateLastTriggered.run(rule.id);
+				await insertAlert.run(rule.id, value);
+				await updateLastTriggered.run(rule.id);
 			}
 		}
 	}

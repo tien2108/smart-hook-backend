@@ -8,9 +8,9 @@ const { requireAuth } = require('../middleware/auth');
 const router = express.Router();
 
 //Get user profile
-router.get('/', requireAuth, (req, res, next) => {
+router.get('/', requireAuth, async (req, res, next) => {
 	try {
-		const user = db
+		const user = await db
 			.prepare(
 				'SELECT name, home_address, dest_address FROM users WHERE id = ?',
 			)
@@ -56,23 +56,23 @@ router.post('/', requireAuth, async (req, res, next) => {
     WHERE id = ?
 `;
 
-		db.prepare(query).run(...values, req.user.id);
+		await db.prepare(query).run(...values, req.user.id);
 	} catch (err) {
 		console.error(err);
 		next(new ApiError(500, 'Error update profile'));
 	}
 });
 
-router.delete('/', requireAuth, (req, res, next) => {
+router.delete('/', requireAuth, async (req, res, next) => {
 	try {
-		const user = db
+		const user = await db
 			.prepare('SELECT name FROM users WHERE id = ?')
 			.get(req.user.id);
 		if (!user) {
 			next(new ApiError(404, 'User not found'));
 		}
 
-		db.prepare('DELETE FROM users WHERE id = ?').run(req.user.id);
+		await db.prepare('DELETE FROM users WHERE id = ?').run(req.user.id);
 	} catch (error) {
 		console.log(error);
 		next(new ApiError(500, error));

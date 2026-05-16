@@ -16,7 +16,7 @@ router.post('/register', async (req, res, next) => {
 			throw new ApiError(400, 'Email and password are required');
 		}
 
-		const existing = db
+		const existing = await db
 			.prepare('SELECT id FROM users WHERE email = ?')
 			.get(email);
 		if (existing) {
@@ -48,7 +48,7 @@ router.post('/register', async (req, res, next) => {
     VALUES (${placeholders})
 `;
 
-		const result = db.prepare(query).run(...values);
+		const result = await db.prepare(query).run(...values);
 
 		const user = { id: result.lastInsertRowid, email };
 		const token = signToken(user);
@@ -70,7 +70,7 @@ router.post('/login', async (req, res, next) => {
 			throw new ApiError(400, 'Email and password are required');
 		}
 
-		const user = db
+		const user = await db
 			.prepare('SELECT * FROM users WHERE email = ? or name = ?')
 			.get(username, username);
 		if (!user) {
@@ -93,8 +93,8 @@ router.post('/login', async (req, res, next) => {
 });
 
 // GET /api/auth/me — current user profile
-router.get('/me', requireAuth, (req, res) => {
-	const user = db
+router.get('/me', requireAuth, async (req, res) => {
+	const user = await db
 		.prepare('SELECT id, email, name, created_at FROM users WHERE id = ?')
 		.get(req.user.id);
 	if (!user) {
@@ -103,8 +103,8 @@ router.get('/me', requireAuth, (req, res) => {
 	res.json(user);
 });
 
-router.get('/user/:id', requireAuth, (req, res) => {
-	const user = db
+router.get('/user/:id', requireAuth, async (req, res) => {
+	const user = await db
 		.prepare('SELECT id, email, name, created_at FROM users WHERE id = ?')
 		.get(req.params.id);
 	if (!user) {

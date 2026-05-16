@@ -11,7 +11,7 @@ router.get('/weather', requireAuth, async (req, res, next) => {
 	const userId = req.user.id;
 	console.log(userId);
 	try {
-		const user = db
+		const user = await db
 			.prepare(`SELECT home_lat, home_lon FROM users WHERE id = ?`)
 			.get(userId);
 
@@ -25,17 +25,18 @@ router.get('/weather', requireAuth, async (req, res, next) => {
 	}
 });
 
-router.get('/activity', requireAuth, (req, res, next) => {
+router.get('/activity', requireAuth, async (req, res, next) => {
 	const userId = req.user.id;
 	try {
-		const activityList = db
+		const activityList = await db
 			.prepare(
 				`  SELECT * FROM device_log WHERE device_log.user_id = ?  ORDER BY time DESC LIMIT 3;`,
 			)
 			.all(userId);
 		console.log(activityList);
 		res.json(activityList);
-	} catch {
+	} catch (err) {
+		console.error(err);
 		return next(new ApiError(500));
 	}
 });
