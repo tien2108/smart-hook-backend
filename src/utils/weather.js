@@ -63,10 +63,18 @@ async function getWeather(lat, lon, arrivalTime = null) {
 
 	const weatherBody = await weatherRes.json();
 
+	// Open-Meteo returns errors as 200 with { error: true, reason: "..." }
+	if (weatherBody?.error) {
+		console.error('Weather API error:', weatherBody);
+		throw new ApiError(
+			500,
+			weatherBody.reason ?? 'Failed to fetch weather data',
+		);
+	}
+
 	if (!weatherBody?.current) {
 		throw new ApiError(500, 'Invalid weather data received');
 	}
-
 	const current = weatherBody.current;
 
 	// 🌦️ default response = CURRENT
