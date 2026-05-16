@@ -92,7 +92,7 @@ router.post('/v1/add-device', requireAuth, async (req, res, next) => {
 	);
 
 	try {
-		const existing = db
+		const existing = await db
 			.prepare('SELECT id FROM devices WHERE uuid = ?')
 			.get(uuid);
 		if (existing) {
@@ -116,7 +116,7 @@ router.post('/v1/add-device', requireAuth, async (req, res, next) => {
 			updates.dest_lat = dest.latitude;
 			updates.dest_lon = dest.longitude;
 		} else {
-			const { dest_address } = db
+			const { dest_address } = await db
 				.prepare(`SELECT dest_address FROM users WHERE id = ?`)
 				.get(req.user.id);
 			updates.dest = dest_address;
@@ -361,7 +361,7 @@ router.get('/v1/device/:id/weather/destination', async (req, res, next) => {
 	const { id } = req.params;
 
 	try {
-		const device = db
+		const device = await db
 			.prepare(
 				'SELECT destination_lat, destination_lon FROM devices WHERE id = ?',
 			)
