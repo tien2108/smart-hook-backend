@@ -128,6 +128,10 @@ router.post('/v1/add-device', requireAuth, async (req, res, next) => {
 		const keys = Object.keys(updates);
 		const placeholders = keys.map(() => '?').join(', ');
 		const values = Object.values(updates);
+		console.log(
+			'INSERT values:',
+			values.map((v) => `${typeof v}: ${v}`),
+		);
 
 		const query = `
     INSERT INTO devices (${keys.join(', ')})

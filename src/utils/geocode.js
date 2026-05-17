@@ -5,6 +5,34 @@ const geocodeCache = new Map();
 const CACHE_TTL = 24 * 60 * 60 * 1000; // 24 hours — addresses rarely move
 let lastRequestAt = 0;
 
+async function fetchFromPhoton(address) {
+	const url = `https://photon.komoot.io/api/?q=${encodeURIComponent(address)}&limit=1`;
+	const res = await fetch(url, {
+		headers: { 'User-Agent': 'SmartHookBackend/1.0' },
+	});
+	if (!res.ok) throw new Error(`Photon ${res.status}`);
+	const data = await res.json();
+	if (!data?.features?.length) throw new Error('No results');
+	return {
+		latitude: data.features[0].geometry.coordinates[1],
+		longitude: data.features[0].geometry.coordinates[0],
+	};
+}
+
+async function fetchFromNominatim(address) {
+	const url = `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(address)}&format=json&limit=1`;
+	const res = await fetch(url, {
+		headers: { 'User-Agent': 'SmartHookBackend/1.0' },
+	});
+	if (!res.ok) throw new Error(`Nominatim ${res.status}`);
+	const data = await res.json();
+	if (!data?.length) throw new Error('No results');
+	return {
+		latitude: parseFloat(data[0].lat),
+		longitude: parseFloat(data[0].lon),
+	};
+}
+
 /**
  * Converts an address string to latitude and longitude using OpenStreetMap Nominatim.
  * Results are cached for 24 hours. Requests are throttled to 1/sec per Nominatim policy.
@@ -31,35 +59,26 @@ async function geocode(address) {
 	}
 
 	try {
-		const url = `https://photon.komoot.io/api/?q=${encodeURIComponent(address)}&limit=1`;
-		const response = await fetch(url, {
-			headers: { 'User-Agent': 'SmartHookBackend/1.0' },
-		});
-
-		if (!response.ok) {
-			throw new ApiError(500, 'Geocoding service unavailable');
+		let result;
+		try {
+			result = await fetchFromPhoton(address);
+		} catch (err) {
+			console.warn('Photon failed, falling back to Nominatim:', err.message);
+			try {
+				result = await fetchFromNominatim(address);
+			} catch (err) {
+				console.error('Nominatim also failed:', err.message);
+				throw new ApiError(500, 'Geocoding service unavailable');
+			}
 		}
 
-		const data = await response.json();
-		if (!data || data.length === 0) {
-			throw new ApiError(404, 'Address not found');
-		}
-
-		const result = {
-			latitude: data.features[0].geometry.coordinates[1],
-			longitude: data.features[0].geometry.coordinates[0],
-		};
 		lastRequestAt = Date.now();
-		// ── Store in cache ───────────────────────────────────────────────────
 		geocodeCache.set(cacheKey, { result, fetchedAt: Date.now() });
-
 		return result;
 	} catch (error) {
-		if (error instanceof ApiError) {
-			throw error;
-		}
+		if (error instanceof ApiError) throw error;
 		console.error('Geocoding error:', error);
-		throw new ApiError(500, 'Error occurred during geocoding');
+		throw new ApiError(500, 'Geocoding service unavailable');
 	}
 }
 

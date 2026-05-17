@@ -5,20 +5,36 @@ const client = createClient({
 	authToken: process.env.TURSO_TOKEN,
 });
 
+function sanitizeArgs(params) {
+	return params.flat().map((v) => (v === undefined ? null : v));
+}
+
+function convertRow(row) {
+	if (!row) return null;
+	const converted = {};
+	for (const [key, value] of Object.entries(row)) {
+		converted[key] = typeof value === 'bigint' ? Number(value) : value;
+	}
+	return converted;
+}
+
 function makeStatement(sql) {
 	return {
 		get: async (...params) => {
-			const result = await client.execute({ sql, args: params.flat() });
-			return result.rows[0] ?? null;
+			const args = params.flat().map((v) => (v === undefined ? null : v));
+			const result = await client.execute({ sql, args });
+			return convertRow(result.rows[0] ?? null);
 		},
 		all: async (...params) => {
-			const result = await client.execute({ sql, args: params.flat() });
-			return result.rows;
+			const args = params.flat().map((v) => (v === undefined ? null : v));
+			const result = await client.execute({ sql, args });
+			return result.rows.map(convertRow);
 		},
 		run: async (...params) => {
-			const result = await client.execute({ sql, args: params.flat() });
+			const args = params.flat().map((v) => (v === undefined ? null : v));
+			const result = await client.execute({ sql, args });
 			return {
-				lastInsertRowid: result.lastInsertRowid,
+				lastInsertRowid: Number(result.lastInsertRowid),
 				changes: result.rowsAffected,
 			};
 		},
